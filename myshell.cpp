@@ -5,6 +5,7 @@
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -49,7 +50,7 @@ std::vector<std::string> splitter(std::string strline, char strdiv){
 	return words;
 }
 
-int merrno(std::vector<std::string> myargs) {
+int merrno(std::vector<std::string> myargs){
 	if(myargs.size() == 0){
 		return 0;
 	}
@@ -61,7 +62,7 @@ int merrno(std::vector<std::string> myargs) {
 	return 1;
 }
 
-int mpwd(std::vector<std::string> myargs, std::string mypath) {
+int mpwd(std::vector<std::string> myargs, std::string mypath){
 	if(myargs.size() == 0){
 		std::cout << mypath << std::endl;
 		return 0;
@@ -75,24 +76,89 @@ int mpwd(std::vector<std::string> myargs, std::string mypath) {
 }
 
 
+int moutput(std::vector<std::string> myargs) {
+	std::string named(myargs[0]);
+	
+	auto path_ptr = getenv("PATH");
+       std::string path_var;
+       if(path_ptr != nullptr)
+           path_var = path_ptr;
+       path_var += ":.";
+       setenv("PATH", path_var.c_str(), 1);
+	
+	pid_t pid = fork();
+	//char *const cmd[] = {"mycat.exe", myargs[1], (char *) 0};
+	
+	
+	std::vector<const char*> arg_for_c;
+       for(auto s: myargs)
+           arg_for_c.push_back(s.c_str());
+       arg_for_c.push_back(nullptr);
+	if (pid == 0){
+		execvp(named.c_str(), const_cast<char* const*>(arg_for_c.data()));
+	//if(pid == 0){
+		//execv(named.c_str(), cmd);
+		std::cerr << "Failed to execute " + myargs[0] << std::endl;
+		return 1;   // exec never returns
+	}
+	//}
+	return 0;
+}
+
 int mycat(std::vector<std::string> myargs) {
 	if(myargs.size() > 1 && (myargs[1] == "-h" || myargs[1] == "--help")){
 		std::cout << "mycat v1.0\nShows the containment of the file" << std::endl;
+		std::cout << "Arguments are the name of the files and path to them if needed. Different files are divided by space.\n";
+		std::cout << "You can enter as many as you want" << std::endl;
 		return 0;
 	}
-	else{
+	else if (myargs.size() > 1){
 		std::cout << "mycat v1.0\nShows the containment of the file" << std::endl;
-		std::string named("mycat.exe");
-		pid_t pid = fork();
-		char *cmd[] = { "mycat.exe", "mycat.cpp", (char *)0 };
-		if(pid == 0){
-			execv(named.c_str(), cmd);
+		std::string named("./mycat");
+		
+		auto path_ptr = getenv("PATH");
+        std::string path_var;
+        if(path_ptr != nullptr)
+            path_var = path_ptr;
+        path_var += ":.";
+        setenv("PATH", path_var.c_str(), 1);
+		
+		pid_t pid1 = fork();
+		if (pid1 == 0){
+			//char *cmd[] = {"gcc", "mycat.cpp", "-std=c++11", "-o", "mycat", (char *)0 };
+			//execvp("g++", cmd);
+			std::vector<const char*> cmd = {"gcc", "mycat.cpp", "-std=c++11", "-o", "mycat", nullptr};
+			execvp("g++", const_cast<char* const*>(cmd.data()));
+		
+		//if(pid == 0){
+			//execv(named.c_str(), cmd);
+			std::cerr << "Failed to create mycat.exe" << std::endl;
+			return 1;   // exec never returns
+		}
+		int status;
+		waitpid(pid1, &status, 0);
+		
+		pid_t pid2 = fork();
+		//char *const cmd[] = {"mycat.exe", myargs[1], (char *) 0};
+		
+		
+		std::vector<const char*> arg_for_c;
+        for(auto s: myargs)
+            arg_for_c.push_back(s.c_str());
+        arg_for_c.push_back(nullptr);
+		if (pid2 == 0){
+			execvp(named.c_str(), const_cast<char* const*>(arg_for_c.data()));
+		//if(pid == 0){
+			//execv(named.c_str(), cmd);
 			std::cerr << "Failed to execute mycat.exe" << std::endl;
 			return 1;   // exec never returns
 		}
+		//}
+		return 0;
 	}
 	//std::cout << "Too many arguments were entered. No arguments needed\nFor more info use help [-h|--help]" << std::endl;
-	return 0;
+	std::cout << "Arguments are necessary. No arguments were entered\nFor more info use help [-h|--help]" << std::endl;
+	return 1;
 }
 
 
@@ -208,12 +274,12 @@ int main(int argc, char* argv[]) {
 			mexit(cmd_args);
 		}
 		else if(!(cmds.size() == 0) && cmds[0] == "mycat"){
-			std::cout << "mycat v1.0\nShows the containe" << std::endl;
+			//std::cout << "mycat v1.0\nShows the containe" << std::endl;
 			mycat(cmds);
 		}
 		else if(!(cmds.size() == 0) && cmds[0][0] == '.' && cmds[0][1] == '/'){
-			//mycat(cmd_args);
-			std::cout << cmds[0] << std::endl;
+			moutput(cmds);
+			//std::cout << cmds[0] << std::endl;
 		}
 		else if (!(cmds.size() == 0) && !(cmds[0] == "")){
 			std::cout << cmds[0] + ": command not found" << std::endl;
