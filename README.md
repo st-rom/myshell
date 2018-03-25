@@ -8,3 +8,7 @@ to compile myshell.cpp on linux use:
 g++ myshell.cpp -std=c++11 -o myshell
 
 
+Works on both Windows and Linux!
+
+
+Made by Stepaniuk Roman, Tymchyshyn Arsen and Khoma Andriy
