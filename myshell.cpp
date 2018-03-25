@@ -10,11 +10,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+int myer = 0;
 
-int dirExists(const char *path)
-{
+
+int dirExists(const char *path){
     struct stat info;
-
     if(stat( path, &info ) != 0)
         return 0;
     else if(info.st_mode & S_IFDIR)
@@ -22,6 +22,7 @@ int dirExists(const char *path)
     else
         return 0;
 }
+
 
 std::vector<std::string> splitter(std::string strline, char strdiv){
 	std::string word;
@@ -50,28 +51,38 @@ std::vector<std::string> splitter(std::string strline, char strdiv){
 	return words;
 }
 
-int merrno(std::vector<std::string> myargs){
+
+int merrno(std::vector<std::string> myargs) { 
 	if(myargs.size() == 0){
+        std::cout << myer << std::endl;
+        myer = 0;
 		return 0;
 	}
+   
 	else if(myargs.size() == 1 && (myargs[0] == "-h" || myargs[0] == "--help")){
 		std::cout << "merrno v1.0\nCatches errors" << std::endl;
+        myer = 0;
 		return 0;
 	}
 	std::cout << "Too many arguments were entered. No arguments needed\nFor more info use help [-h|--help]" << std::endl;
+        myer = 7;
 	return 1;
 }
 
-int mpwd(std::vector<std::string> myargs, std::string mypath){
+
+int mpwd(std::vector<std::string> myargs, std::string mypath) {
 	if(myargs.size() == 0){
 		std::cout << mypath << std::endl;
+        myer = 0;
 		return 0;
 	}
 	else if(myargs.size() == 1 && (myargs[0] == "-h" || myargs[0] == "--help")){
 		std::cout << "mpwd v1.0\nShows current path" << std::endl;
+        myer = 0;
 		return 0;
 	}
 	std::cout << "Too many arguments were entered. No arguments needed\nFor more info use help [-h|--help]" << std::endl;
+    myer = 7;
 	return 1;
 }
 
@@ -80,15 +91,14 @@ int moutput(std::vector<std::string> myargs) {
 	std::string named(myargs[0]);
 	
 	auto path_ptr = getenv("PATH");
-       std::string path_var;
-       if(path_ptr != nullptr)
-           path_var = path_ptr;
-       path_var += ":.";
-       setenv("PATH", path_var.c_str(), 1);
+    std::string path_var;
+    if(path_ptr != nullptr)
+        path_var = path_ptr;
+    path_var += ":.";
+    setenv("PATH", path_var.c_str(), 1);
 	
 	pid_t pid = fork();
 	//char *const cmd[] = {"mycat.exe", myargs[1], (char *) 0};
-	
 	
 	std::vector<const char*> arg_for_c;
        for(auto s: myargs)
@@ -96,14 +106,13 @@ int moutput(std::vector<std::string> myargs) {
        arg_for_c.push_back(nullptr);
 	if (pid == 0){
 		execvp(named.c_str(), const_cast<char* const*>(arg_for_c.data()));
-	//if(pid == 0){
-		//execv(named.c_str(), cmd);
 		std::cerr << "Failed to execute " + myargs[0] << std::endl;
 		return 1;   // exec never returns
 	}
 	//}
 	return 0;
 }
+
 
 int mycat(std::vector<std::string> myargs) {
 	if(myargs.size() > 1 && (myargs[1] == "-h" || myargs[1] == "--help")){
@@ -163,32 +172,49 @@ int mycat(std::vector<std::string> myargs) {
 
 
 int mcd(std::vector<std::string> myargs, std::string mypath) {
-	if(myargs.size() != 1){
+	if(myargs.size() == 0 || myargs[0] == "."){
+        std::cout << mypath << std::endl;
+        myer = 0;
+        return 0;
+    }
+    if(myargs.size() != 1){
+        myer = 7;
 		return 1;
 	}
 	else if(myargs[0] == "-h" || myargs[0] == "--help"){
-		std::cout << "mcd v1.0\nChanges current directory path" << std::endl;
+		std::cout << "mcd v1.0\nChanges current directory path\n<..> will move you one directory higher\n<'path'> enter where you want to move to do it" << std::endl;
+        myer = 0;
 		return 0;
 	}
+    else if(myargs[0] == ".."){
+    }
 	else{
-		/*
-		DIR* dir = opendir(myargs[0]);
-		if (dir)
-		{
+		std::string newpath = myargs[0];
+        DIR* dir = opendir(myargs[0]);
+        if (!dir){
+            myer = 2;
+            return 1;
+        }
+        else{
+            if(newpath.is_absolute()){
+                changeDir(newpath);
+            }
+            else if(path.is_relative()){
+                newpath = mypath + "/" + newpath;
+                changeDir(newpath);
+            }
+		/*DIR* dir = opendir(myargs[0]);
+		if (dir){
 			std::cout << "worked" << std::endl;
 			//mypath += '/' + myargs[0];
 			closedir(dir);
-		}
-		else if (ENOENT == errno)
-		{
-			std::cout << "Directory does not exist" << std::endl;
-		}
-		else
-		{
-			std::cout << "Failed for some other reason" << std::endl;
-		}
-		*/
-		
+		}*/
+            else if (ENOENT == errno){
+                std::cout << "Directory does not exist" << std::endl;
+            }
+            else{
+                std::cout << "Failed for some other reason" << std::endl;
+            }
 		/*
 		std::filesystem::path path(myargs[0]);
 		if (path.is_absolute()) {
@@ -202,15 +228,20 @@ int mcd(std::vector<std::string> myargs, std::string mypath) {
 			printf("%d\n", dirExists(patho), patho);
 		}
 		*/
-		return 0;
+            myer = 0;
+            return 0;
+        }    
 	}
-	return 1;
+	//return 1;
 }
+
+
 
 int mexit(std::vector<std::string> myargs) {
 	if(myargs.size() == 1){
 		if(myargs[0] == "-h" || myargs[0] == "--help"){
 			std::cout << "mexit v1.0\nExits program with inputed code\nArgument code(integer) is necessary\n" << std::endl;
+            myer = 0;
 			return 0;
 		}
 		bool isdig = true;
@@ -224,34 +255,32 @@ int mexit(std::vector<std::string> myargs) {
 		}
 		else{
 			std::cout << "Wrong argument was entered. For more info use help [-h|--help]" << std::endl;
+            myer = 22;
 			return 1;
 		}
 		//std::cout << std::stoi(myargs[0]) << std::endl;
-		
 	}
+
 	else if(myargs.size() > 1){
 		std::cout << "Too many were entered.\nPlease read help using [-h] or [--help] to get more info" << std::endl;
+        myer = 7;
 		return 1;
 	}
+
 	else{
 		std::cout << "mexit v1.0\nNo arguments were entered. For more info use help [-h|--help]" << std::endl;
+        myer = 22;
 		return 1;
 	}
 }
+
 
 int main(int argc, char* argv[]) {
 	char cwd[256];
 	getcwd(cwd, sizeof(cwd));
 	std::cout << "Welcome to myshell" << std::endl;
-	//std::cout << sizeof(cwd) << std::endl;
-	//std::string mypath = new string(cwd)
-	//std::cout << mypath << std::endl;
 	std::string mypath(cwd);
-	//std::cout << mypath << std::endl;
-	//mypath += " $";
-	//std::cout << mypath << std::endl;
 	std::vector<std::string> folds = splitter(mypath, '/');
-
 	while (true){
 		std::string myinput;
 		std::cout << "\033[1;34m" + mypath +  "\033[0m" + "\033[1;31m" + " $ " +  "\033[0m";
@@ -274,12 +303,12 @@ int main(int argc, char* argv[]) {
 			mexit(cmd_args);
 		}
 		else if(!(cmds.size() == 0) && cmds[0] == "mycat"){
-			//std::cout << "mycat v1.0\nShows the containe" << std::endl;
+			std::cout << "mycat v1.0\nShows the containe" << std::endl;
 			mycat(cmds);
 		}
 		else if(!(cmds.size() == 0) && cmds[0][0] == '.' && cmds[0][1] == '/'){
-			moutput(cmds);
-			//std::cout << cmds[0] << std::endl;
+			//mycat(cmd_args);
+			std::cout << cmds[0] << std::endl;
 		}
 		else if (!(cmds.size() == 0) && !(cmds[0] == "")){
 			std::cout << cmds[0] + ": command not found" << std::endl;
