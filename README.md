@@ -1,6 +1,8 @@
 # myshell
 myshell
 
+Updated with functions mycp, mymkdir, myrm, mymv.
+
 
 there is no need to compile mycat.
 to compile myshell.cpp on linux use:
