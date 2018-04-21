@@ -345,6 +345,7 @@ bool rec_move(std::string inp, std::string outp, bool f){
 		strcat(complete_filename, file_name);
 		if((dir_check((inp + '/' + file_name).c_str()) == 1) && (file_name[0] != '.')){
 			rec_move(inp + '/' + file_name, outp + '/' + file_name, f);
+			remove((inp + '/' + file_name).c_str());
 		}
 		else if(file_name[0] != '.'){
 			f = file_copy(inp + '/' + file_name, outp + '/' + file_name, f);
@@ -392,6 +393,7 @@ int mymv(std::vector<std::string> myargs){
 			}
 		}
 		if (tolower(ask) == 'y'){
+			std::cout << "here??" << std::endl;
 			rename(files[0].c_str(), files[1].c_str());
 		}
 		else if(tolower(ask) == 'a'){
@@ -407,26 +409,23 @@ int mymv(std::vector<std::string> myargs){
 		return -1;
 	}
 	else{
-		std::cout << "W" << std::endl;
 		for(int i = 0; i < files.size() - 1; i++){
-			std::cout << " H " << std::endl;
 			ask = 'y';
 			if (dir_check(files[i].c_str()) == 1){
-				std::cout << "E" << std::endl;
 				if (dir_check((files[files.size() - 1] + '/' + files[i]).c_str()) == 1) {
-					std::cout << "R" << std::endl;
 					if(!f){
 						std::cout << "Are you sure you want to rewrite " << files[files.size() - 1] + '/' + files[i] << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
 						std::cin >> ask;
 					}
 				}
 				if (tolower(ask) == 'y'){
-					std::cout << "E?" << std::endl;
 					f = rec_move(files[i], files[files.size() - 1] + '/' + files[i], f);
+					remove((files[i]).c_str());
 				}
 				else if(tolower(ask) == 'a'){
 					f = true;
 					f = rec_move(files[i], files[files.size() - 1] + '/' + files[i], f);
+					remove((files[i]).c_str());
 				}
 				else if(tolower(ask) == 'c'){
 					exit(EXIT_SUCCESS);
