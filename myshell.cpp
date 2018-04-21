@@ -289,6 +289,7 @@ int mycp(std::vector<std::string> myargs){
 			std::ofstream dest(files[1], std::ios::binary);
 			dest << src.rdbuf();
 		}
+		//CONTINUE
 	}
 	else if (dir_check(files[files.size() - 1].c_str()) == 0){
 		std::cout << "Last argument isn't folder" << std::endl;
@@ -313,6 +314,7 @@ int mycp(std::vector<std::string> myargs){
 				}
 				else if(tolower(ask) == 'a'){
 					f = true;
+					//TODO
 				}
 				else if(tolower(ask) == 'c'){
 					exit(EXIT_SUCCESS);
@@ -323,6 +325,126 @@ int mycp(std::vector<std::string> myargs){
 			}
 		}
 	}
+}
+
+
+bool rec_move(std::string inp, std::string outp, bool f){
+	mkdir((outp).c_str(), ACCESSPERMS);
+    char complete_filename[512];
+	struct dirent **namelist;
+	struct stat buf;
+	int n = scandir(inp.c_str(), &namelist, 0, alphasort);
+	int i;
+ 
+	for ( i = 0; i < n; i++ )
+	{ 
+		char *file_name = namelist[i]->d_name;
+ 
+		strcpy(complete_filename, "./");
+		strcat(complete_filename, "/");
+		strcat(complete_filename, file_name);
+		if((dir_check((inp + '/' + file_name).c_str()) == 1) && (file_name[0] != '.')){
+			rec_move(inp + '/' + file_name, outp + '/' + file_name, f);
+		}
+		else if(file_name[0] != '.'){
+			f = file_copy(inp + '/' + file_name, outp + '/' + file_name, f);
+			std::ifstream ifile(outp + '/' + file_name);
+			if (ifile){
+				remove((inp + '/' + file_name).c_str());
+			}
+			else{
+				std::cout << "Failed to move file" << std::endl;
+			}
+		}
+	}
+	return f;
+}
+
+
+int mymv(std::vector<std::string> myargs){
+	if(myargs.size() == 0){
+		std::cout << "No arguments were entered. For more info use agument [-h|--help]" << std::endl;
+		myer = 7;
+		return 1;
+	}
+	std::vector<std::string> files;
+	bool f = false;
+	for(int i = 0; i < myargs.size(); ++i){
+		if (myargs[i] == "-h" || myargs[i] == "--help"){
+			std::cout << "mymv" << std::endl;
+			exit(EXIT_SUCCESS);
+		}
+		else if (myargs[i] == "-f"){
+			f = true;
+		} 
+		else{
+			files.push_back(myargs[i]);
+		}
+	}
+	char ask = 'y';	
+	if (files.size() == 2 && dir_check(files[0].c_str()) == 0 && dir_check(files[1].c_str()) == 0){
+		std::ifstream src(files[0], std::ios::binary);
+		std::ifstream ifile(files[1]);
+		if (ifile) {
+			if(!f){
+				std::cout << "Are you sure you want to rewrite " << files[1] << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
+				std::cin >> ask;
+			}
+		}
+		if (tolower(ask) == 'y'){
+			rename(files[0].c_str(), files[1].c_str());
+		}
+		else if(tolower(ask) == 'a'){
+			f = true;
+			rename(files[0].c_str(), files[1].c_str());
+		}
+		else if(tolower(ask) == 'c'){
+			exit(EXIT_SUCCESS);
+		}
+	}
+	else if (dir_check(files[files.size() - 1].c_str()) == 0){
+		std::cout << "Last argument isn't folder" << std::endl;
+		return -1;
+	}
+	else{
+		std::cout << "W" << std::endl;
+		for(int i = 0; i < files.size() - 1; i++){
+			std::cout << " H " << std::endl;
+			ask = 'y';
+			if (dir_check(files[i].c_str()) == 1){
+				std::cout << "E" << std::endl;
+				if (dir_check((files[files.size() - 1] + '/' + files[i]).c_str()) == 1) {
+					std::cout << "R" << std::endl;
+					if(!f){
+						std::cout << "Are you sure you want to rewrite " << files[files.size() - 1] + '/' + files[i] << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
+						std::cin >> ask;
+					}
+				}
+				if (tolower(ask) == 'y'){
+					std::cout << "E?" << std::endl;
+					f = rec_move(files[i], files[files.size() - 1] + '/' + files[i], f);
+				}
+				else if(tolower(ask) == 'a'){
+					f = true;
+					f = rec_move(files[i], files[files.size() - 1] + '/' + files[i], f);
+				}
+				else if(tolower(ask) == 'c'){
+					exit(EXIT_SUCCESS);
+				}
+			}
+			else{
+				f = file_copy(files[i], files[files.size() - 1] + '/' + files[i], f);
+				std::ifstream ifile(files[files.size() - 1] + '/' + files[i]);
+				if (ifile){
+					remove((files[i]).c_str());
+				}
+				else{
+					std::cout << "Failed to move file" << std::endl;
+				}
+			}
+		}
+	}
+	return 0;
 }
 
 
@@ -473,13 +595,6 @@ int mymkdir(std::vector<std::string> myargs){
     }
 }
 
-int mymv(std::vector<std::string> myargs){
-	if(myargs.size() == 0){
-			std::cout << "No name for directory. For more info use agument [-h|--help]" << std::endl;
-			myer = 7;
-			return 1;
-	}
-}
 
 int mexit(std::vector<std::string> myargs) {
 	if(myargs.size() == 1){
@@ -557,6 +672,9 @@ int main(int argc, char* argv[]) {
 		}
 		else if(!(cmds.size() == 0) && cmds[0] == "mycp"){
 			mycp(cmd_args);
+		}
+		else if(!(cmds.size() == 0) && cmds[0] == "mymv"){
+			mymv(cmd_args);
 		}
 		else if(!(cmds.size() == 0) && cmds[0][0] == '.' && cmds[0][1] == '/'){
 			moutput(cmds);
