@@ -53,15 +53,14 @@ int main(int argc, char *argv[]){
 		std::cout << "Wrong arguments" << std::endl;
 		return -1;
 	}
-	std::cout << ign << std::endl;
 	std::ifstream infile(read_file);
 	std::string line;
 	std::vector<std::string> result;
 	while (std::getline(infile, line)){
 		std::istringstream iss(line);
-		std::cout << "dd" << std::endl;
+		//std::cout << "dd" << std::endl;
 		if(ign){
-			std::cout << line << std::endl;
+			//std::cout << line << std::endl;
 			//std::cout << makelower(line) << ' ' << makelower(str) << std::endl;
 			if(makelower(line).find(makelower(str)) != -1 && !v){
 				result.push_back(line);
