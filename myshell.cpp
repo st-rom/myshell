@@ -9,11 +9,11 @@
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <ctype.h>
 #include <sys/param.h>
 #include <dirent.h>
 int myer = 0;
+
 
 
 int dir_check(const char *path)
@@ -53,6 +53,45 @@ std::vector<std::string> splitter(std::string strline, char strdiv){
 		words.push_back(word);
 	}
 	return words;
+}
+
+
+int mshbyline(char* file){
+    //std::cout << file << std::endl;
+    std::ifstream infile(file);
+    std::string line;
+
+    while (std::getline(infile, line))
+    {
+        //pid_t pid = fork();
+        std::vector<const char*> arg_for_c;
+        std::vector<std::string> fwa = splitter(line, ' ');
+        if(line[0] != '#') {
+            for (auto s: fwa)
+                arg_for_c.push_back(s.c_str());
+            arg_for_c.push_back(nullptr);
+            pid_t pid = fork();
+            if (pid == -1)
+            {
+                std::cerr << "Failed to fork()" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            else if(pid == 0)
+            {
+                char buffer[256]; // <- danger, only storage for 256 characters.
+                strncpy(buffer, "./", sizeof(buffer));
+                strncat(buffer, arg_for_c[0], sizeof(buffer));
+                execvp(buffer, const_cast<char* const*>(arg_for_c.data()));
+                std::cerr << "Failed to execute " << std::endl;
+                return 1;
+            }
+            int status;
+            waitpid(pid, &status, 0);
+        }
+
+
+    }
+    return 0;
 }
 
 int merrno(std::vector<std::string> myargs) { 
@@ -289,7 +328,15 @@ int mycp(std::vector<std::string> myargs){
 			std::ofstream dest(files[1], std::ios::binary);
 			dest << src.rdbuf();
 		}
-		//CONTINUE
+		//CONTINUE(Done?)
+		else if(tolower(ask) == 'a'){
+			f = true;
+			std::ofstream dest(files[1], std::ios::binary);
+			dest << src.rdbuf();
+		}
+		else if(tolower(ask) == 'c'){
+			exit(EXIT_SUCCESS);
+		}
 	}
 	else if (dir_check(files[files.size() - 1].c_str()) == 0){
 		std::cout << "Last argument isn't folder" << std::endl;
@@ -314,7 +361,8 @@ int mycp(std::vector<std::string> myargs){
 				}
 				else if(tolower(ask) == 'a'){
 					f = true;
-					//TODO
+					f = rec_copy(files[i], files[files.size() - 1] + '/' + files[i], f);
+					//TODO done?
 				}
 				else if(tolower(ask) == 'c'){
 					exit(EXIT_SUCCESS);
@@ -636,6 +684,9 @@ int main(int argc, char* argv[]) {
 	std::string mypath(cwd);
 	std::vector<std::string> folds = splitter(mypath, '/');
 	char buffer[MAXPATHLEN];
+	for(int i = 1; i < argc; ++i){
+	    mshbyline(argv[i]);
+	}
 
 	while (true){
 		char *path = getcwd(buffer, MAXPATHLEN);
@@ -678,6 +729,13 @@ int main(int argc, char* argv[]) {
 		else if(!(cmds.size() == 0) && cmds[0][0] == '.' && cmds[0][1] == '/'){
 			moutput(cmds);
 		}
+        else if(!(cmds.size() == 0) && cmds[0][0] == '.'){
+            char * writable = new char[cmd_args[0].size() + 1];
+            std::copy(cmd_args[0].begin(), cmd_args[0].end(), writable);
+            writable[cmd_args[0].size()] = '\0';
+            mshbyline(writable);
+            delete[] writable;
+        }
 		else if (!(cmds.size() == 0) && !(cmds[0] == "")){
 			myer = 13;
 			std::cout << cmds[0] + ": command not found" << std::endl;
