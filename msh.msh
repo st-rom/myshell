@@ -1,0 +1,4 @@
+#cat msh.msh
+ls
+pwd
+ls -l

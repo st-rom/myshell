@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <sys/param.h>
 #include <dirent.h>
+extern char **environ;
 int myer = 0;
 
 
@@ -64,12 +65,16 @@ int mshbyline(char* file){
     while (std::getline(infile, line))
     {
         //pid_t pid = fork();
+
         std::vector<const char*> arg_for_c;
         std::vector<std::string> fwa = splitter(line, ' ');
+
+        char **args = static_cast<char**>(malloc( (fwa.size() + 1) * sizeof(char*)));
+
+        for(int i = 0; i < fwa.size();i++){
+            args[i] = (char *) fwa[i].c_str();
+        }
         if(line[0] != '#') {
-            for (auto s: fwa)
-                arg_for_c.push_back(s.c_str());
-            arg_for_c.push_back(nullptr);
             pid_t pid = fork();
             if (pid == -1)
             {
@@ -78,10 +83,7 @@ int mshbyline(char* file){
             }
             else if(pid == 0)
             {
-                char buffer[256]; // <- danger, only storage for 256 characters.
-                strncpy(buffer, "./", sizeof(buffer));
-                strncat(buffer, arg_for_c[0], sizeof(buffer));
-                execvp(buffer, const_cast<char* const*>(arg_for_c.data()));
+                execvpe(fwa[0].c_str(), args, environ);
                 std::cerr << "Failed to execute " << std::endl;
                 return 1;
             }
