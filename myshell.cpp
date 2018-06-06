@@ -78,6 +78,7 @@ int mshbyline(std::string fl){
         for(int i = 0; i < fwa.size();i++){
             args[i] = (char *) fwa[i].c_str();
         }
+        args[fwa.size()] = NULL;
         if(line[0] != '#') {
             pid_t pid = fork();
             if (pid == -1)
@@ -87,6 +88,7 @@ int mshbyline(std::string fl){
             }
             else if(pid == 0)
             {
+                std::cout << args[1] << std::endl;
                 execvpe(fwa[0].c_str(), args, environ);
                 std::cerr << "Failed to execute " << std::endl;
                 return 1;
@@ -140,7 +142,7 @@ int mpwd(std::vector<std::string> myargs, std::string mypath){
 
 
 int moutput(std::vector<std::string> myargs) {
-	std::string named(myargs[0]);
+	std::string named(myargs[0].substr(2));
 	auto path_ptr = getenv("PATH");
     std::string path_var;
     if(path_ptr != nullptr)
@@ -148,13 +150,17 @@ int moutput(std::vector<std::string> myargs) {
     path_var += ":.";
     setenv("PATH", path_var.c_str(), 1);
 	pid_t pid = fork();
-	std::vector<const char*> arg_for_c;
-       for(auto s: myargs)
-           arg_for_c.push_back(s.c_str());
-       arg_for_c.push_back(nullptr);
+    char **args = static_cast<char**>(malloc( (myargs.size() + 1) * sizeof(char*)));
+    args[0] = (char *) myargs[0].substr(2).c_str();
+    for(int i = 1; i < myargs.size();i++){
+        args[i] = (char *) myargs[i].c_str();
+    }
+    args[myargs.size()] = NULL;
 	if (pid == 0){
-		execvp(named.c_str(), const_cast<char* const*>(arg_for_c.data()));
-		std::cerr << "Failed to execute " + myargs[0] << std::endl;
+		//execvp(named.c_str(), const_cast<char* const*>(arg_for_c.data()));
+        std::cout << args[1] << std::endl;
+        execvpe(named.c_str(), args, environ);
+		std::cerr << "Failed to execute " + named << std::endl;
 		myer = 16;
 		return 1;
 	}
