@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <string.h>
+#include <string>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -12,6 +13,7 @@
 #include <ctype.h>
 #include <sys/param.h>
 #include <dirent.h>
+#include <typeinfo>
 extern char **environ;
 int myer = 0;
 
@@ -57,8 +59,10 @@ std::vector<std::string> splitter(std::string strline, char strdiv){
 }
 
 
-int mshbyline(char* file){
+int mshbyline(std::string fl){
     //std::cout << file << std::endl;
+    char file[fl.length() + 1];
+    strcpy(file, fl.c_str());
     std::ifstream infile(file);
     std::string line;
 
@@ -87,8 +91,10 @@ int mshbyline(char* file){
                 std::cerr << "Failed to execute " << std::endl;
                 return 1;
             }
-            int status;
-            waitpid(pid, &status, 0);
+            else if (pid > 0) {
+                int status;
+                waitpid(pid, &status, 0);
+            }
         }
 
 
@@ -152,6 +158,8 @@ int moutput(std::vector<std::string> myargs) {
 		myer = 16;
 		return 1;
 	}
+    int status;
+    waitpid(pid, &status, 0);
 	myer = 0;
 	return 0;
 }
@@ -204,6 +212,12 @@ int mycat(std::vector<std::string> myargs) {
 	return 1;
 }
 
+
+std::string makesubstr(std::string fullstr){
+    std::cout << "juk" << std::endl;
+    //std::string toret = fullstr.substr(1);
+    return "lol";
+}
 
 int mcd(std::vector<std::string> myargs, std::string mypath) {
 	if(myargs.size() == 0 || myargs[0] == "."){
@@ -694,7 +708,8 @@ int main(int argc, char* argv[]) {
 		char *path = getcwd(buffer, MAXPATHLEN);
 		mypath = path;
 		std::string myinput;
-		std::cout << "\033[1;34m" + mypath +  "\033[0m" + "\033[1;31m" + " $ " +  "\033[0m";
+		//std::cout << "\033[1;34m" + mypath +  "\033[0m" + "\033[1;31m" + " $ " +  "\033[0m";
+        std::cout << mypath + " $ ";
 		getline (std::cin, myinput);
 		std::vector<std::string> cmds = splitter(myinput, ' ');
 		std::vector<std::string> cmd_args;
@@ -731,12 +746,8 @@ int main(int argc, char* argv[]) {
 		else if(!(cmds.size() == 0) && cmds[0][0] == '.' && cmds[0][1] == '/'){
 			moutput(cmds);
 		}
-        else if(!(cmds.size() == 0) && cmds[0][0] == '.'){
-            char * writable = new char[cmd_args[0].size() + 1];
-            std::copy(cmd_args[0].begin(), cmd_args[0].end(), writable);
-            writable[cmd_args[0].size()] = '\0';
-            mshbyline(writable);
-            delete[] writable;
+        else if(!(cmds.size() == 0) && cmds[0][0] == '.' && cmds[0][1] != '/'){
+            mshbyline(cmds[0].substr(1));
         }
 		else if (!(cmds.size() == 0) && !(cmds[0] == "")){
 			myer = 13;
