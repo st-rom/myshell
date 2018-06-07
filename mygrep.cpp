@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
+#include <regex>
 
 
 std::string makelower(std::string str){
@@ -15,10 +16,13 @@ std::string makelower(std::string str){
 	}
 	return toret;
 }
+
+
 int main(int argc, char *argv[]){
 	bool ign = false;
 	bool v = false;
 	bool locked = false;
+	std::string restr;
 	std::string read_file;
 	std::string str;
 	if(argc < 2){
@@ -27,7 +31,7 @@ int main(int argc, char *argv[]){
 	} 
 	for(int i = 1; i < argc; ++i){
 		if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0){
-			std::cout << "greper" << std::endl;
+			std::cout << "grep\n-i ignore case\n-v invert match" << std::endl;
 			return 0;
 		}
 		if(strcmp(argv[i], "-i") == 0){
@@ -36,9 +40,12 @@ int main(int argc, char *argv[]){
 		else if(strcmp(argv[i], "-v") == 0){
 			v = true;
 		}
-		//std::cout << (std::string(argv[i]).find("--file=") == 0) << std::endl;
 		else if(std::string(argv[i]).find("--file=") == 0){
 			read_file = std::string(argv[i]).substr(7);
+		}
+		else if(std::string(argv[i]).find("--regexp=") == 0){
+			restr = std::string(argv[i]).substr(9);//, std::string(argv[i]).length() - 1);
+			locked = true;
 		}
 		else if(!locked){
 			str = argv[i];
@@ -53,15 +60,14 @@ int main(int argc, char *argv[]){
 		std::cout << "Wrong arguments" << std::endl;
 		return -1;
 	}
+	std::cout << restr << std::endl;
 	std::ifstream infile(read_file);
 	std::string line;
 	std::vector<std::string> result;
 	while (std::getline(infile, line)){
 		std::istringstream iss(line);
-		//std::cout << "dd" << std::endl;
+		std::regex re(restr);
 		if(ign){
-			//std::cout << line << std::endl;
-			//std::cout << makelower(line) << ' ' << makelower(str) << std::endl;
 			if(makelower(line).find(makelower(str)) != -1 && !v){
 				result.push_back(line);
 			}
