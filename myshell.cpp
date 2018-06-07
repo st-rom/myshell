@@ -60,7 +60,6 @@ std::vector<std::string> splitter(std::string strline, char strdiv){
 
 
 int mshbyline(std::string fl){
-    //std::cout << file << std::endl;
     char file[fl.length() + 1];
     strcpy(file, fl.c_str());
     std::ifstream infile(file);
@@ -68,8 +67,6 @@ int mshbyline(std::string fl){
 
     while (std::getline(infile, line))
     {
-        //pid_t pid = fork();
-
         std::vector<const char*> arg_for_c;
         std::vector<std::string> fwa = splitter(line, ' ');
 
@@ -103,6 +100,7 @@ int mshbyline(std::string fl){
     }
     return 0;
 }
+
 
 int merrno(std::vector<std::string> myargs) { 
 	if(myargs.size() == 0){
@@ -141,92 +139,42 @@ int mpwd(std::vector<std::string> myargs, std::string mypath){
 }
 
 
-int moutput(std::vector<std::string> myargs) {
-	std::string named(myargs[0].substr(2));
-	auto path_ptr = getenv("PATH");
+int myminies(std::vector<std::string> myargs) {
+    std::string named;
+    if(myargs[0][0] == '.' && myargs[0][1] == '/'){
+        named = myargs[0].substr(2);
+    }
+    else {
+        named = myargs[0];
+    }
+    auto path_ptr = getenv("PATH");
     std::string path_var;
     if(path_ptr != nullptr)
         path_var = path_ptr;
     path_var += ":.";
     setenv("PATH", path_var.c_str(), 1);
-	pid_t pid = fork();
+    pid_t pid = fork();
     char **args = static_cast<char**>(malloc( (myargs.size() + 1) * sizeof(char*)));
-    args[0] = (char *) myargs[0].substr(2).c_str();
+    args[0] = (char *) named.c_str();
     for(int i = 1; i < myargs.size();i++){
         args[i] = (char *) myargs[i].c_str();
     }
     args[myargs.size()] = NULL;
-	if (pid == 0){
-		//execvp(named.c_str(), const_cast<char* const*>(arg_for_c.data()));
-        std::cout << args[1] << std::endl;
+    if (pid == 0){
         execvpe(named.c_str(), args, environ);
-		std::cerr << "Failed to execute " + named << std::endl;
-		myer = 16;
-		return 1;
-	}
+        std::cerr << "Failed to execute " + named << std::endl;
+        myer = 16;
+        return 1;
+    }
     int status;
     waitpid(pid, &status, 0);
-	myer = 0;
-	return 0;
+    myer = 0;
+    return 0;
 }
 
-int mycat(std::vector<std::string> myargs) {
-	if(myargs.size() > 1 && (myargs[1] == "-h" || myargs[1] == "--help")){
-		std::cout << "mycat v1.0\nShows the containment of the file" << std::endl;
-		std::cout << "Arguments are the name of the files and path to them if needed. Different files are divided by space.\n";
-		std::cout << "You can enter as many as you want" << std::endl;
-		myer = 0;
-		return 0;
-	}
-	else if (myargs.size() > 1){
-		std::cout << "mycat v1.0\nShows the containment of the file" << std::endl;
-		std::string named("./mycat");
-		
-		auto path_ptr = getenv("PATH");
-        std::string path_var;
-        if(path_ptr != nullptr)
-            path_var = path_ptr;
-        path_var += ":.";
-        setenv("PATH", path_var.c_str(), 1);
-		
-		pid_t pid1 = fork();
-		if (pid1 == 0){
-			std::vector<const char*> cmd = {"gcc", "mycat.cpp", "-std=c++11", "-o", "mycat", nullptr};
-			execvp("g++", const_cast<char* const*>(cmd.data()));
-			std::cerr << "Failed to create mycat.exe" << std::endl;
-			myer = 15;
-			return 1;
-		}
-		int status;
-		waitpid(pid1, &status, 0);
-		pid_t pid2 = fork();
-		std::vector<const char*> arg_for_c;
-        for(auto s: myargs)
-            arg_for_c.push_back(s.c_str());
-        arg_for_c.push_back(nullptr);
-		if (pid2 == 0){
-			execvp(named.c_str(), const_cast<char* const*>(arg_for_c.data()));
-			std::cerr << "Failed to execute mycat.exe" << std::endl;
-			myer = 16;
-			return 1;
-		}
-		myer = 0;
-		return 0;
-	}
-	std::cout << "Arguments are necessary. No arguments were entered\nFor more info use help [-h|--help]" << std::endl;
-	myer = 22;
-	return 1;
-}
-
-
-std::string makesubstr(std::string fullstr){
-    std::cout << "juk" << std::endl;
-    //std::string toret = fullstr.substr(1);
-    return "lol";
-}
 
 int mcd(std::vector<std::string> myargs, std::string mypath) {
-	if(myargs.size() == 0 || myargs[0] == "."){
+	if(myargs.empty() || myargs[0] == "."){
         return 0;
     }
 	else if(myargs.size() == 1 && myargs[0] == ".."){
@@ -265,405 +213,6 @@ int mcd(std::vector<std::string> myargs, std::string mypath) {
 	
 }
 
-bool file_copy(std::string inp, std::string outp, bool f){
-	char ask = 'y';
-	std::ifstream iiifile(outp);
-	if (iiifile) {
-		if(!f){
-			std::cout << "Are you sure you want to rewrite " << outp << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
-			std::cin >> ask;
-		}
-	}
-	if (tolower(ask) == 'y'){
-		std::ifstream src(inp, std::ios::binary);
-		std::ofstream dest(outp, std::ios::binary);
-		dest << src.rdbuf();
-	}
-	else if(tolower(ask) == 'a'){
-		f = true;
-		std::ifstream src(inp, std::ios::binary);
-		std::ofstream dest(outp, std::ios::binary);
-		dest << src.rdbuf();
-	}
-	else if(tolower(ask) == 'c'){
-		exit(EXIT_SUCCESS);
-	}
-	return f;
-}
-
-bool rec_copy(std::string inp, std::string outp, bool f){
-	mkdir((outp).c_str(), ACCESSPERMS);
-    char complete_filename[512];
-	struct dirent **namelist;
-	struct stat buf;
-	int n = scandir(inp.c_str(), &namelist, 0, alphasort);
-	int i;
- 
-	for ( i = 0; i < n; i++ )
-	{ 
-		char *file_name = namelist[i]->d_name;
- 
-		strcpy(complete_filename, "./");
-		strcat(complete_filename, "/");
-		strcat(complete_filename, file_name);
-		if((dir_check((inp + '/' + file_name).c_str()) == 1) && (file_name[0] != '.')){
-			rec_copy(inp + '/' + file_name, outp + '/' + file_name, f);
-		}
-		else if(file_name[0] != '.'){
-			f = file_copy(inp + '/' + file_name, outp + '/' + file_name, f);
-		}
-	}
-	return f;
-}
-
-
-int mycp(std::vector<std::string> myargs){
-	std::vector<std::string> files;
-	bool f = false;
-	bool r = false;
-	for(int i = 0; i < myargs.size(); ++i){
-		if (myargs[i] == "-h" || myargs[i] == "--help"){
-			std::cout << "mycp" << std::endl;
-			exit(EXIT_SUCCESS);
-		}
-		else if (myargs[i] == "-f"){
-			f = true;
-		} 
-		else if (myargs[i] == "-R"){
-			r = true;
-		} 
-		else{
-			files.push_back(myargs[i]);
-		}
-	}
-	char ask = 'y';	
-	if (files.size() == 2 && dir_check(files[0].c_str()) == 0 && dir_check(files[1].c_str()) == 0){
-		std::ifstream src(files[0], std::ios::binary);
-		std::ifstream ifile(files[1]);
-		if (ifile) {
-			if(!f){
-				std::cout << "Are you sure you want to rewrite " << files[1] << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
-				std::cin >> ask;
-			}
-		}
-		if (tolower(ask) == 'y'){
-			std::ofstream dest(files[1], std::ios::binary);
-			dest << src.rdbuf();
-		}
-		//CONTINUE(Done?)
-		else if(tolower(ask) == 'a'){
-			f = true;
-			std::ofstream dest(files[1], std::ios::binary);
-			dest << src.rdbuf();
-		}
-		else if(tolower(ask) == 'c'){
-			exit(EXIT_SUCCESS);
-		}
-	}
-	else if (dir_check(files[files.size() - 1].c_str()) == 0){
-		std::cout << "Last argument isn't folder" << std::endl;
-		return -1;
-	}
-	else{
-		for(int i = 0; i < files.size() - 1; i++){
-			ask = 'y';
-			if (dir_check(files[i].c_str()) == 1 && !r){
-				std::cout << "Cannot copy dir w/o spec arg" << std::endl;
-				}
-			else if (dir_check(files[i].c_str()) == 1){
-				
-				if (dir_check((files[files.size() - 1] + '/' + files[i]).c_str()) == 1) {
-					if(!f){
-						std::cout << "Are you sure you want to rewrite " << files[files.size() - 1] + '/' + files[i] << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
-						std::cin >> ask;
-					}
-				}
-				if (tolower(ask) == 'y'){
-					f = rec_copy(files[i], files[files.size() - 1] + '/' + files[i], f);
-				}
-				else if(tolower(ask) == 'a'){
-					f = true;
-					f = rec_copy(files[i], files[files.size() - 1] + '/' + files[i], f);
-					//TODO done?
-				}
-				else if(tolower(ask) == 'c'){
-					exit(EXIT_SUCCESS);
-				}
-			}
-			else{
-				f = file_copy(files[i], files[files.size() - 1] + '/' + files[i], f);
-			}
-		}
-	}
-}
-
-
-bool rec_move(std::string inp, std::string outp, bool f){
-	mkdir((outp).c_str(), ACCESSPERMS);
-    char complete_filename[512];
-	struct dirent **namelist;
-	struct stat buf;
-	int n = scandir(inp.c_str(), &namelist, 0, alphasort);
-	int i;
- 
-	for ( i = 0; i < n; i++ )
-	{ 
-		char *file_name = namelist[i]->d_name;
- 
-		strcpy(complete_filename, "./");
-		strcat(complete_filename, "/");
-		strcat(complete_filename, file_name);
-		if((dir_check((inp + '/' + file_name).c_str()) == 1) && (file_name[0] != '.')){
-			rec_move(inp + '/' + file_name, outp + '/' + file_name, f);
-			remove((inp + '/' + file_name).c_str());
-		}
-		else if(file_name[0] != '.'){
-			f = file_copy(inp + '/' + file_name, outp + '/' + file_name, f);
-			std::ifstream ifile(outp + '/' + file_name);
-			if (ifile){
-				remove((inp + '/' + file_name).c_str());
-			}
-			else{
-				std::cout << "Failed to move file" << std::endl;
-			}
-		}
-	}
-	return f;
-}
-
-
-int mymv(std::vector<std::string> myargs){
-	if(myargs.size() == 0){
-		std::cout << "No arguments were entered. For more info use agument [-h|--help]" << std::endl;
-		myer = 7;
-		return 1;
-	}
-	std::vector<std::string> files;
-	bool f = false;
-	for(int i = 0; i < myargs.size(); ++i){
-		if (myargs[i] == "-h" || myargs[i] == "--help"){
-			std::cout << "mymv" << std::endl;
-			exit(EXIT_SUCCESS);
-		}
-		else if (myargs[i] == "-f"){
-			f = true;
-		} 
-		else{
-			files.push_back(myargs[i]);
-		}
-	}
-	char ask = 'y';	
-	if (files.size() == 2 && dir_check(files[0].c_str()) == 0 && dir_check(files[1].c_str()) == 0){
-		std::ifstream src(files[0], std::ios::binary);
-		std::ifstream ifile(files[1]);
-		if (ifile) {
-			if(!f){
-				std::cout << "Are you sure you want to rewrite " << files[1] << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
-				std::cin >> ask;
-			}
-		}
-		if (tolower(ask) == 'y'){
-			std::cout << "here??" << std::endl;
-			rename(files[0].c_str(), files[1].c_str());
-		}
-		else if(tolower(ask) == 'a'){
-			f = true;
-			rename(files[0].c_str(), files[1].c_str());
-		}
-		else if(tolower(ask) == 'c'){
-			exit(EXIT_SUCCESS);
-		}
-	}
-	else if (dir_check(files[files.size() - 1].c_str()) == 0){
-		std::cout << "Last argument isn't folder" << std::endl;
-		return -1;
-	}
-	else{
-		for(int i = 0; i < files.size() - 1; i++){
-			ask = 'y';
-			if (dir_check(files[i].c_str()) == 1){
-				if (dir_check((files[files.size() - 1] + '/' + files[i]).c_str()) == 1) {
-					if(!f){
-						std::cout << "Are you sure you want to rewrite " << files[files.size() - 1] + '/' + files[i] << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
-						std::cin >> ask;
-					}
-				}
-				if (tolower(ask) == 'y'){
-					f = rec_move(files[i], files[files.size() - 1] + '/' + files[i], f);
-					remove((files[i]).c_str());
-				}
-				else if(tolower(ask) == 'a'){
-					f = true;
-					f = rec_move(files[i], files[files.size() - 1] + '/' + files[i], f);
-					remove((files[i]).c_str());
-				}
-				else if(tolower(ask) == 'c'){
-					exit(EXIT_SUCCESS);
-				}
-			}
-			else{
-				f = file_copy(files[i], files[files.size() - 1] + '/' + files[i], f);
-				std::ifstream ifile(files[files.size() - 1] + '/' + files[i]);
-				if (ifile){
-					remove((files[i]).c_str());
-				}
-				else{
-					std::cout << "Failed to move file" << std::endl;
-				}
-			}
-		}
-	}
-	return 0;
-}
-
-
-bool dir_rm(std::string inp, bool f){
-	char complete_filename[512];
-	struct dirent **namelist;
-	struct stat buf;
-	int n = scandir(inp.c_str(), &namelist, 0, alphasort);
-	for (int i = 0; i < n; i++ )
-	{ 
-		char ask = 'y';
-		char *file_name = namelist[i]->d_name;
- 
-		strcpy(complete_filename, "./");
-		strcat(complete_filename, "/");
-		strcat(complete_filename, file_name);
-		if(file_name[0] != '.'){
-			if (!f){
-				std::cout << "Are you sure you want to delete " << inp + '/' + file_name << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
-				std::cin >> ask;
-			}
-			if(tolower(ask) == 'y'){
-				if(dir_check((inp + '/' + file_name).c_str()) == 1){
-					f = dir_rm(inp + '/' + file_name, f);
-					if( remove((inp + '/' + file_name).c_str()) != 0 ){
-						perror( "Error deleting file" );
-					}
-				}
-				else if( remove((inp + '/' + file_name).c_str()) != 0 ){
-					perror( "Error deleting file" );
-				}
-			}
-			else if(tolower(ask) == 'a'){
-				f = true;
-				if(dir_check((inp + '/' + file_name).c_str()) == 1){
-					f = dir_rm(inp + '/' + file_name, f);
-					if( remove((inp + '/' + file_name).c_str()) != 0 ){
-						perror( "Error deleting file" );
-					}
-				}
-				else if( remove((inp + '/' + file_name).c_str()) != 0 ){
-					perror( "Error deleting file" );
-				}
-			}
-			else if(tolower(ask) == 'c'){
-				exit(EXIT_SUCCESS);
-			}
-		}
-	}
-	return f;
-}
-
-
-int myrm(std::vector<std::string> myargs){
-	std::vector<std::string> files;
-	bool r = false;
-	bool f = false;
-	for(int i = 0; i < myargs.size(); ++i){
-		if (myargs[i] == "-h" || myargs[i] == "--help"){
-			std::cout << "myrm" << std::endl;
-			exit(EXIT_SUCCESS);
-		}
-		else if (myargs[i] == "-f"){
-			f = true;
-		} 
-		else if (myargs[i] == "-R"){
-			r = true;
-		} 
-		else{
-			files.push_back(myargs[i]);
-		}
-	}
-	int er = 0;
-	char ask = 'y';
-	for(int i = 0; i < files.size(); ++i){
-		if (!f){
-			std::cout << "Are you sure you want to delete " << files[i] << "?  Y[es]/N[o]/A[ll]/C[ancel] ";
-			std::cin >> ask;
-		}
-		if(tolower(ask) == 'y'){
-			if(dir_check(files[i].c_str()) == 1 && r){
-				f = dir_rm(files[i], f);
-				if( remove((files[i]).c_str()) != 0 ){
-					perror( "Error deleting file" );
-				}
-			}
-			else if( remove(files[i].c_str()) != 0 ){
-				perror( "Error deleting file" );
-				er = 1;
-			}
-		}
-		else if(tolower(ask) == 'a'){
-			f = true;
-			if(dir_check(files[i].c_str()) == 1 && r){
-				f = dir_rm(files[i], f);
-				if( remove((files[i]).c_str()) != 0 ){
-					perror( "Error deleting file" );
-				}
-			}
-			else if( remove(files[i].c_str()) != 0 ){
-				perror( "Error deleting file" );
-				er = 1;
-			}
-		}
-		else if(tolower(ask) == 'c'){
-			exit(EXIT_SUCCESS);
-		}
-	}
-	if (er == 1)
-		return -1;
-	return 0;
-}
-
-
-int mymkdir(std::vector<std::string> myargs){
-	bool p = false;
-	if(myargs.size() == 0){
-			std::cout << "No name for directory. For more info use agument [-h|--help]" << std::endl;
-			myer = 7;
-			return 1;
-	} 
-	for(int i = 0; i < myargs.size(); ++i){
-		if(myargs[i] == "-h" || myargs[i] == "--help"){
-			std::cout << "Creates directory" << std::endl;
-			myer = 0;
-			return 0;
-		}
-		if(myargs[i] == "-p"){
-			p = true;
-		}
-	}
-	if(p){
-		mkdir(myargs[myargs.size() - 1].c_str(), ACCESSPERMS);
-		myer = 0;
-		return 0;
-	}
-    else{
-        if (dir_check(myargs[myargs.size() - 1].c_str()) == 0){
-            mkdir(myargs[myargs.size() - 1].c_str(), ACCESSPERMS);
-            myer = 0;
-            return 0;
-        }
-        else{
-            std::cout << "Directory already exist" << std::endl;
-            myer = 2;
-            return 1;
-        }
-    }
-}
-
 
 int mexit(std::vector<std::string> myargs) {
 	if(myargs.size() == 1){
@@ -694,10 +243,9 @@ int mexit(std::vector<std::string> myargs) {
 	}
 	else{
 		exit(0);
-		myer = 0;
-		return 0;
 	}
 }
+
 
 int main(int argc, char* argv[]) {
 	char cwd[256];
@@ -734,23 +282,10 @@ int main(int argc, char* argv[]) {
 		else if(!(cmds.size() == 0) && cmds[0] == "mexit"){
 			mexit(cmd_args);
 		}
-		else if(!(cmds.size() == 0) && cmds[0] == "mymkdir"){
-			mymkdir(cmd_args);
-		}
-		else if(!(cmds.size() == 0) && cmds[0] == "mycat"){
-			mycat(cmds);
-		}
-		else if(!(cmds.size() == 0) && cmds[0] == "myrm"){
-			myrm(cmd_args);
-		}
-		else if(!(cmds.size() == 0) && cmds[0] == "mycp"){
-			mycp(cmd_args);
-		}
-		else if(!(cmds.size() == 0) && cmds[0] == "mymv"){
-			mymv(cmd_args);
-		}
-		else if(!(cmds.size() == 0) && cmds[0][0] == '.' && cmds[0][1] == '/'){
-			moutput(cmds);
+		else if(!(cmds.size() == 0) && (cmds[0] == "mymkdir" | cmds[0] == "mycat" | cmds[0] == "myrm" |
+                                        cmds[0] == "mycp" | cmds[0] == "mymv" | cmds[0] == "mygrep" |
+                                        (cmds[0][0] == '.' && cmds[0][1] == '/'))){
+			myminies(cmds);
 		}
         else if(!(cmds.size() == 0) && cmds[0][0] == '.' && cmds[0][1] != '/'){
             mshbyline(cmds[0].substr(1));
