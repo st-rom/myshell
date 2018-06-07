@@ -14,6 +14,8 @@
 #include <sys/param.h>
 #include <dirent.h>
 #include <typeinfo>
+#include <fcntl.h>
+//#include <readline/history.h>
 extern char **environ;
 int myer = 0;
 
@@ -139,7 +141,7 @@ int mpwd(std::vector<std::string> myargs, std::string mypath){
 }
 
 
-int myminies(std::vector<std::string> myargs) {
+int myminies(std::vector<std::string> myargs, bool waiter) {
     std::string named;
     if(myargs[0][0] == '.' && myargs[0][1] == '/'){
         named = myargs[0].substr(2);
@@ -167,7 +169,9 @@ int myminies(std::vector<std::string> myargs) {
         return 1;
     }
     int status;
-    waitpid(pid, &status, 0);
+    if (waiter) {
+        waitpid(pid, &status, 0);
+    }
     myer = 0;
     return 0;
 }
@@ -247,6 +251,38 @@ int mexit(std::vector<std::string> myargs) {
 }
 
 
+void which2run(std::vector<std::string> &cmds, std:: string mypath, bool waiter) {
+    std::vector<std::string> cmd_args;
+    for (int i = 1; i < cmds.size(); i++) {
+        cmd_args.push_back(cmds[i]);
+    }
+    if (!(cmds.empty()) && cmds[0] == "merrno") {
+        merrno(cmd_args);
+    }
+    else if (!(cmds.empty()) && cmds[0] == "mpwd") {
+        mpwd(cmd_args, mypath);
+    }
+    else if (!(cmds.empty()) && cmds[0] == "mcd") {
+        mcd(cmd_args, mypath);
+    }
+    else if (!(cmds.empty()) && cmds[0] == "mexit") {
+        mexit(cmd_args);
+    }
+    else if (!(cmds.empty()) && (cmds[0] == "mymkdir" | cmds[0] == "mycat" | cmds[0] == "myrm" |
+                                   cmds[0] == "mycp" | cmds[0] == "mymv" | cmds[0] == "mygrep" |
+                                   (cmds[0][0] == '.' && cmds[0][1] == '/'))) {
+        myminies(cmds, waiter);
+    }
+    else if (!(cmds.empty()) && cmds[0][0] == '.') {
+        mshbyline(cmds[0].substr(1));
+    }
+    else if (!(cmds.empty()) && !(cmds[0] == "")) {
+        myer = 13;
+        std::cout << cmds[0] + ": command not found" << std::endl;
+    }
+}
+
+
 int main(int argc, char* argv[]) {
 	char cwd[256];
 	getcwd(cwd, sizeof(cwd));
@@ -257,42 +293,105 @@ int main(int argc, char* argv[]) {
 	for(int i = 1; i < argc; ++i){
 	    mshbyline(argv[i]);
 	}
+	int saved_stdout = dup(STDOUT_FILENO);
+    int saved_stderr = dup(STDERR_FILENO);
+    int saved_stdin = dup(STDIN_FILENO);
+    bool waiter;
 
 	while (true){
+        dup2(saved_stdin, STDIN_FILENO);
+        dup2(saved_stdout, STDOUT_FILENO);
+        dup2(saved_stderr, STDERR_FILENO);
 		char *path = getcwd(buffer, MAXPATHLEN);
 		mypath = path;
 		std::string myinput;
 		//std::cout << "\033[1;34m" + mypath +  "\033[0m" + "\033[1;31m" + " $ " +  "\033[0m";
         std::cout << mypath + " $ ";
 		getline (std::cin, myinput);
-		std::vector<std::string> cmds = splitter(myinput, ' ');
-		std::vector<std::string> cmd_args;
-		for(int i = 1;i < cmds.size();i++){
-			cmd_args.push_back(cmds[i]);
-		}
-		if(!(cmds.size() == 0) && cmds[0] == "merrno"){
-			merrno(cmd_args);
-		}
-		else if(!(cmds.size() == 0) && cmds[0] == "mpwd"){
-			mpwd(cmd_args, mypath);
-		}
-		else if(!(cmds.size() == 0) && cmds[0] == "mcd"){
-			mcd(cmd_args, mypath);
-		}
-		else if(!(cmds.size() == 0) && cmds[0] == "mexit"){
-			mexit(cmd_args);
-		}
-		else if(!(cmds.size() == 0) && (cmds[0] == "mymkdir" | cmds[0] == "mycat" | cmds[0] == "myrm" |
-                                        cmds[0] == "mycp" | cmds[0] == "mymv" | cmds[0] == "mygrep" |
-                                        (cmds[0][0] == '.' && cmds[0][1] == '/'))){
-			myminies(cmds);
-		}
-        else if(!(cmds.size() == 0) && cmds[0][0] == '.' && cmds[0][1] != '/'){
-            mshbyline(cmds[0].substr(1));
+		waiter = true;
+		//std::vector<std::string> conveyored = splitter(myinput, '|');
+		//if(conveyored.size() == 1){
+        std::vector<std::string> cmds;
+        int con0 = myinput.find(" < ");
+		int con1 = myinput.find(" > ");
+        int con2 = myinput.find(" 2> ");
+        int con3 = myinput.find(" 2>&1 ");
+        int con4 = myinput.find(" | ");
+        //int con5 = myinput.find("=`");
+        int file_desc;
+        if (con0 != -1){
+            file_desc = open(myinput.substr(myinput.find(" < ") + 3).c_str(), O_RDONLY);
+            myinput = myinput.substr(0, myinput.find(" < "));
+            dup2(file_desc, STDIN_FILENO);
         }
-		else if (!(cmds.size() == 0) && !(cmds[0] == "")){
-			myer = 13;
-			std::cout << cmds[0] + ": command not found" << std::endl;
+        else if (con1 != -1){
+			file_desc = open(myinput.substr(myinput.find(" > ") + 3).c_str(), O_WRONLY | O_APPEND);
+            myinput = myinput.substr(0, myinput.find(" > "));
+			dup2(file_desc, STDOUT_FILENO);
+		}
+        else if (con2 != -1){
+            file_desc = open(myinput.substr(myinput.find(" 2> ") + 4).c_str(), O_WRONLY | O_APPEND);
+            myinput = myinput.substr(0, myinput.find(" 2> "));
+            dup2(file_desc, STDERR_FILENO);
+        }
+        else if (con3 != -1){
+            file_desc = open(myinput.substr(myinput.find(" 2>&1 ") + 6).c_str(), O_WRONLY | O_APPEND);
+            myinput = myinput.substr(0, myinput.find(" 2>&1 "));
+            dup2(file_desc, STDERR_FILENO);
+            dup2(file_desc, STDOUT_FILENO);
+        }
+        else if (con4 != -1){
+            //std::vector<std::string> for_conv = splitter(myinput, '|');
+            std::string conv1 = myinput.substr(0, myinput.find(" | "));
+            myinput = myinput.substr(con4 + 3);
+            int pps[2];
+            pipe(pps);
+            int pin = pps[0];
+            int pout = pps[1];
+            pid_t pid_conv = fork();
+            if (pid_conv == -1)
+            {
+                std::cerr << "Failed to fork()" << std::endl;
+            }
+            else if(pid_conv == 0)
+            {
+                close(pin);
+                dup2(pout, STDOUT_FILENO);
+                dup2(pout, STDERR_FILENO);
+                cmds = splitter(conv1, ' ');
+                which2run(cmds, mypath, waiter);
+                close(STDOUT_FILENO);
+                close(STDERR_FILENO);
+                close(pout);
+                return 0;
+            }
+            else if(pid_conv > 0){
+                close(pout);
+                dup2(pin, STDIN_FILENO);
+                close(pin);
+                int status;
+                waitpid(pid_conv, &status, 0);
+            }
+            //myinput = myinput.substr(0, myinput.find(" | "));
+            //std::vector<std::string>
+            //dup2(for_conv, STDOUT_FILENO);
+        }
+        else if(myinput[myinput.size() - 1] == '&'){
+            close(0);
+            close(1);
+            close(2);
+            waiter = false;
+            myinput = myinput.substr(0, myinput.size() - 1);
+        }
+		//std::cout << con << ' ' << myinput.substr(0, myinput.find('>')) << ' ' << myinput.substr(myinput.find('>') + 1) << std::endl;;
+
+			//std::vector<std::string> cmds = splitter(myinput, ' ');
+		cmds = splitter(myinput, ' ');
+
+		which2run(cmds, mypath, waiter);
+
+        if (con0 != -1 || con1 != -1 || con2 != -1){
+		    close(file_desc);
 		}
 	}
 }
