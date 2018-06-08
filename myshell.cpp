@@ -15,9 +15,13 @@
 #include <dirent.h>
 #include <typeinfo>
 #include <fcntl.h>
+#include <map>
+
+
 //#include <readline/history.h>
 extern char **environ;
 int myer = 0;
+std::map<std::string, std::string> global_vars;
 
 
 
@@ -217,6 +221,30 @@ int mcd(std::vector<std::string> myargs, std::string mypath) {
 	
 }
 
+int mecho(std::vector<std::string> myargs, std::map<std::string, std::string> invars){
+    std::string thisvar;
+    if(myargs.size() == 1){
+        thisvar = myargs[0].substr(1);
+    }
+    std::cout << invars[thisvar] << std::endl;
+
+}
+
+
+int mexport(std::vector<std::string> myargs, std::map<std::string, std::string> invars){
+    std::string thisvar;
+    if(myargs.size() == 1){
+        thisvar = myargs[0].substr(1);
+    }
+    int con5 = thisvar.find("=");
+    if(con5 == -1){
+        global_vars.insert(std::pair <std::string, std::string> (thisvar.substr(0, con5), thisvar.substr(con5 + 1)));
+    }
+    else{
+        global_vars.insert(std::pair <std::string, std::string> (thisvar, invars[thisvar]));
+    }
+    return 0;
+}
 
 int mexit(std::vector<std::string> myargs) {
 	if(myargs.size() == 1){
@@ -251,7 +279,7 @@ int mexit(std::vector<std::string> myargs) {
 }
 
 
-void which2run(std::vector<std::string> &cmds, std:: string mypath, bool waiter) {
+void which2run(std::vector<std::string> &cmds, std:: string mypath, bool waiter, std::map<std::string, std::string> invars){
     std::vector<std::string> cmd_args;
     for (int i = 1; i < cmds.size(); i++) {
         cmd_args.push_back(cmds[i]);
@@ -268,8 +296,14 @@ void which2run(std::vector<std::string> &cmds, std:: string mypath, bool waiter)
     else if (!(cmds.empty()) && cmds[0] == "mexit") {
         mexit(cmd_args);
     }
+    else if (!(cmds.empty()) && cmds[0] == "mecho") {
+        mecho(cmd_args, invars);
+    }
+    else if (!(cmds.empty()) && cmds[0] == "mexport") {
+        mexport(cmd_args, invars);
+    }
     else if (!(cmds.empty()) && (cmds[0] == "mymkdir" | cmds[0] == "mycat" | cmds[0] == "myrm" |
-                                   cmds[0] == "mycp" | cmds[0] == "mymv" | cmds[0] == "mygrep" |
+                                   cmds[0] == "mycp" | cmds[0] == "mymv" | cmds[0] == "mygrep" | cmds[0] == "myls" |
                                    (cmds[0][0] == '.' && cmds[0][1] == '/'))) {
         myminies(cmds, waiter);
     }
@@ -284,6 +318,7 @@ void which2run(std::vector<std::string> &cmds, std:: string mypath, bool waiter)
 
 
 int main(int argc, char* argv[]) {
+    std::map<std::string, std::string> invars;
 	char cwd[256];
 	getcwd(cwd, sizeof(cwd));
 	std::cout << "Welcome to myshell" << std::endl;
@@ -299,25 +334,23 @@ int main(int argc, char* argv[]) {
     bool waiter;
 
 	while (true){
+        bool toignore = false;
         dup2(saved_stdin, STDIN_FILENO);
         dup2(saved_stdout, STDOUT_FILENO);
         dup2(saved_stderr, STDERR_FILENO);
 		char *path = getcwd(buffer, MAXPATHLEN);
-		mypath = path;
+        mypath = path;
 		std::string myinput;
-		//std::cout << "\033[1;34m" + mypath +  "\033[0m" + "\033[1;31m" + " $ " +  "\033[0m";
         std::cout << mypath + " $ ";
 		getline (std::cin, myinput);
 		waiter = true;
-		//std::vector<std::string> conveyored = splitter(myinput, '|');
-		//if(conveyored.size() == 1){
         std::vector<std::string> cmds;
         int con0 = myinput.find(" < ");
 		int con1 = myinput.find(" > ");
         int con2 = myinput.find(" 2> ");
         int con3 = myinput.find(" 2>&1 ");
         int con4 = myinput.find(" | ");
-        //int con5 = myinput.find("=`");
+        int con5 = myinput.find("=");
         int file_desc;
         if (con0 != -1){
             file_desc = open(myinput.substr(myinput.find(" < ") + 3).c_str(), O_RDONLY);
@@ -341,7 +374,6 @@ int main(int argc, char* argv[]) {
             dup2(file_desc, STDOUT_FILENO);
         }
         else if (con4 != -1){
-            //std::vector<std::string> for_conv = splitter(myinput, '|');
             std::string conv1 = myinput.substr(0, myinput.find(" | "));
             myinput = myinput.substr(con4 + 3);
             int pps[2];
@@ -359,7 +391,7 @@ int main(int argc, char* argv[]) {
                 dup2(pout, STDOUT_FILENO);
                 dup2(pout, STDERR_FILENO);
                 cmds = splitter(conv1, ' ');
-                which2run(cmds, mypath, waiter);
+                which2run(cmds, mypath, waiter, invars);
                 close(STDOUT_FILENO);
                 close(STDERR_FILENO);
                 close(pout);
@@ -372,24 +404,24 @@ int main(int argc, char* argv[]) {
                 int status;
                 waitpid(pid_conv, &status, 0);
             }
-            //myinput = myinput.substr(0, myinput.find(" | "));
-            //std::vector<std::string>
-            //dup2(for_conv, STDOUT_FILENO);
         }
         else if(myinput[myinput.size() - 1] == '&'){
-            close(0);
-            close(1);
-            close(2);
+            close(STDIN_FILENO);
+            close(STDOUT_FILENO);
+            close(STDERR_FILENO);
             waiter = false;
             myinput = myinput.substr(0, myinput.size() - 1);
         }
-		//std::cout << con << ' ' << myinput.substr(0, myinput.find('>')) << ' ' << myinput.substr(myinput.find('>') + 1) << std::endl;;
 
-			//std::vector<std::string> cmds = splitter(myinput, ' ');
+        else if (con5 != -1){
+            invars.insert(std::pair <std::string, std::string> (myinput.substr(0, con5), myinput.substr(con5 + 1)));
+            toignore = true;
+        }
 		cmds = splitter(myinput, ' ');
 
-		which2run(cmds, mypath, waiter);
-
+        if(!toignore) {
+            which2run(cmds, mypath, waiter, invars);
+        }
         if (con0 != -1 || con1 != -1 || con2 != -1){
 		    close(file_desc);
 		}
